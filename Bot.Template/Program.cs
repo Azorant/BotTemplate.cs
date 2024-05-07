@@ -18,7 +18,7 @@ try
     builder.Services
         .AddSingleton(new DiscordSocketConfig
         {
-            GatewayIntents = GatewayIntents.All
+            GatewayIntents = GatewayIntents.Guilds
         })
         .AddSingleton<DiscordSocketClient>()
         .AddSingleton<InteractionService>()

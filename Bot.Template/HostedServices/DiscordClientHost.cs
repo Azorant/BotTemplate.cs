@@ -1,6 +1,7 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Discord;
 using Discord.Interactions;
+using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -78,9 +79,17 @@ internal sealed class DiscordClientHost : IHostedService
             .AddModulesAsync(Assembly.GetExecutingAssembly(), serviceProvider);
 
         if (IsDebug())
-            await interactionService.RegisterCommandsToGuildAsync(ulong.Parse(Environment.GetEnvironmentVariable("DEV_GUILD")!));
+        {
+            ulong.TryParse(Environment.GetEnvironmentVariable("DEV_GUILD")!, out var guildId);
+            var guild = client.Guilds.FirstOrDefault(g => g.Id == guildId);
+            var commands = await interactionService.RegisterCommandsToGuildAsync(guildId);
+            Log.Information($"Deployed {commands.Count} commands to {guild?.Name ?? guildId.ToString()}");
+        }
         else
-            await interactionService.RegisterCommandsGloballyAsync();
+        {
+            var commands = await interactionService.RegisterCommandsGloballyAsync();
+            Log.Information($"Deployed {commands.Count} commands globally");
+        }
     }
 
     private async Task JoinedGuild(SocketGuild guild)
@@ -165,7 +174,6 @@ internal sealed class DiscordClientHost : IHostedService
                         embed.Title = "Something Happened";
                         embed.Description = "I was unable to run your command.\nIf it continues to happen join the support server";
                     }
-
                     break;
                 case InteractionCommandError.UnmetPrecondition:
                     embed.Title = "Missing Permissions";
@@ -184,9 +192,9 @@ internal sealed class DiscordClientHost : IHostedService
         }
         else
         {
-            var guild = context.Interaction.GuildId == null
+            var guild = context.Interaction.ContextType != InteractionContextType.Guild
                 ? "DM"
-                : $"{context.Guild.Name} ({context.Guild.Id}) #{context.Channel.Name} ({context.Channel.Id})";
+                : context.Guild != null ? $"{context.Guild.Name} ({context.Guild.Id}) #{context.Channel.Name} ({context.Channel.Id})" : $"User Context {context.Interaction.GuildId} {context.Interaction.ChannelId}";
             Log.Information(
                 $"[Command] {guild} {DisplayName(context.User)} ({context.User.Id}) ran /{(string.IsNullOrEmpty(command.Module.Parent?.SlashGroupName) ? string.Empty : command.Module.Parent.SlashGroupName + ' ')}{(string.IsNullOrEmpty(command.Module.SlashGroupName) ? string.Empty : command.Module.SlashGroupName + ' ')}{command.Name} {ParseArgs(((SocketSlashCommandData)context.Interaction.Data).Options)}");
         }
