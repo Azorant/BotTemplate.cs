@@ -19,7 +19,7 @@ public class MiscModule() : InteractionModuleBase<SocketInteractionContext>
             .AddField("Library", $"Discord.Net {library.Version!.ToString()}", true)
             .AddField("Developer", $"{DiscordClientHost.DisplayName(self)}", true)
             .AddField("Links",
-                $"[GitHub](https://github.com/Korrdyn)\n[Support](https://discord.gg/{Environment.GetEnvironmentVariable("DISCORD_INVITE")})\n[Patreon](https://patreon.com/Korrdyn)",
+                $"[GitHub](https://github.com/Azorant)\n[Support](https://discord.gg/{Environment.GetEnvironmentVariable("DISCORD_INVITE")})\n[Ko-fi](https://ko-fi.com/azorant)",
                 true)
             .WithColor(Color.Blue)
             .WithCurrentTimestamp()
