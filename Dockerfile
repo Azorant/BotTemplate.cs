@@ -1,8 +1,9 @@
-﻿FROM mcr.microsoft.com/dotnet/runtime:8.0-alpine AS base
-USER $APP_UID
+﻿FROM mcr.microsoft.com/dotnet/runtime:9.0-alpine AS base
 WORKDIR /app
+RUN apk add --no-cache icu-libs
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Bot.Template/Bot.Template.csproj", "Bot.Template/"]
