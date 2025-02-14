@@ -14,11 +14,13 @@ internal sealed class DiscordClientHost : IHostedService
     private readonly DiscordSocketClient client;
     private readonly InteractionService interactionService;
     private readonly IServiceProvider serviceProvider;
+    private readonly Events events;
 
     public DiscordClientHost(
         DiscordSocketClient client,
         InteractionService interactionService,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        Events events)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(interactionService);
@@ -27,21 +29,22 @@ internal sealed class DiscordClientHost : IHostedService
         this.client = client;
         this.interactionService = interactionService;
         this.serviceProvider = serviceProvider;
+        this.events = events;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         client.InteractionCreated += InteractionCreated;
         client.Ready += ClientReady;
-        client.JoinedGuild += JoinedGuild;
-        client.LeftGuild += LeftGuild;
         client.Log += LogAsync;
+        client.JoinedGuild += events.OnGuildJoined;
+        client.LeftGuild += events.OnGuildLeft;
+        client.Ready += events.OnClientReady;
+        client.Disconnected += events.OnClientDisconnected;
         interactionService.Log += LogAsync;
         interactionService.SlashCommandExecuted += SlashCommandExecuted;
-
-
+        
         await client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("TOKEN"));
-
         await client.StartAsync();
     }
 
@@ -49,9 +52,11 @@ internal sealed class DiscordClientHost : IHostedService
     {
         client.InteractionCreated -= InteractionCreated;
         client.Ready -= ClientReady;
-        client.JoinedGuild -= JoinedGuild;
-        client.LeftGuild -= LeftGuild;
         client.Log -= LogAsync;
+        client.JoinedGuild -= events.OnGuildJoined;
+        client.LeftGuild -= events.OnGuildLeft;
+        client.Ready -= events.OnClientReady;
+        client.Disconnected -= events.OnClientDisconnected;
         interactionService.Log -= LogAsync;
         interactionService.SlashCommandExecuted -= SlashCommandExecuted;
 
@@ -90,44 +95,6 @@ internal sealed class DiscordClientHost : IHostedService
             var commands = await interactionService.RegisterCommandsGloballyAsync();
             Log.Information($"Deployed {commands.Count} commands globally");
         }
-    }
-
-    private async Task JoinedGuild(SocketGuild guild)
-    {
-        if (!ulong.TryParse(Environment.GetEnvironmentVariable("GUILD_CHANNEL"), out var channelId)) return;
-
-        if (client.GetChannel(channelId) is not SocketTextChannel channel || channel.GetChannelType() != ChannelType.Text) return;
-
-        var user = await client.GetUserAsync(guild.OwnerId);
-        var owner = user == null
-            ? $"**Owner ID:** {guild.OwnerId}"
-            : $"**Owner:** {DisplayName(user)}\n**Owner ID:** {user.Id}";
-
-        await channel.SendMessageAsync(embed: new EmbedBuilder()
-            .WithTitle("Joined guild")
-            .WithDescription($"**Name:** {guild.Name}\n**ID:** {guild.Id}\n{owner}\n**Members:** {guild.MemberCount}\n**Created:** {guild.CreatedAt:f}")
-            .WithColor(Color.Green)
-            .WithCurrentTimestamp()
-            .WithThumbnailUrl(guild.IconUrl).Build());
-    }
-
-    private async Task LeftGuild(SocketGuild guild)
-    {
-        if (!ulong.TryParse(Environment.GetEnvironmentVariable("GUILD_CHANNEL"), out var channelId)) return;
-
-        if (client.GetChannel(channelId) is not SocketTextChannel channel || channel.GetChannelType() != ChannelType.Text) return;
-
-        var user = await client.GetUserAsync(guild.OwnerId);
-        var owner = user == null
-            ? $"**Owner ID:** {guild.OwnerId}"
-            : $"**Owner:** {DisplayName(user)}\n**Owner ID:** {user.Id}";
-
-        await channel.SendMessageAsync(embed: new EmbedBuilder()
-            .WithTitle("Left guild")
-            .WithDescription($"**Name:** {guild.Name}\n**ID:** {guild.Id}\n{owner}\n**Members:** {guild.MemberCount}\n**Created:** {guild.CreatedAt:f}")
-            .WithColor(Color.Red)
-            .WithCurrentTimestamp()
-            .WithThumbnailUrl(guild.IconUrl).Build());
     }
 
     private static async Task LogAsync(LogMessage message)
@@ -174,6 +141,7 @@ internal sealed class DiscordClientHost : IHostedService
                         embed.Title = "Something Happened";
                         embed.Description = "I was unable to run your command.\nIf it continues to happen join the support server";
                     }
+
                     break;
                 case InteractionCommandError.UnmetPrecondition:
                     embed.Title = "Missing Permissions";
@@ -194,15 +162,13 @@ internal sealed class DiscordClientHost : IHostedService
         {
             var guild = context.Interaction.ContextType != InteractionContextType.Guild
                 ? "DM"
-                : context.Guild != null ? $"{context.Guild.Name} ({context.Guild.Id}) #{context.Channel.Name} ({context.Channel.Id})" : $"User Context {context.Interaction.GuildId} {context.Interaction.ChannelId}";
+                : context.Guild != null
+                    ? $"{context.Guild.Name} ({context.Guild.Id}) #{context.Channel.Name} ({context.Channel.Id})"
+                    : $"User Context {context.Interaction.GuildId} {context.Interaction.ChannelId}";
             Log.Information(
-                $"[Command] {guild} {DisplayName(context.User)} ({context.User.Id}) ran /{(string.IsNullOrEmpty(command.Module.Parent?.SlashGroupName) ? string.Empty : command.Module.Parent.SlashGroupName + ' ')}{(string.IsNullOrEmpty(command.Module.SlashGroupName) ? string.Empty : command.Module.SlashGroupName + ' ')}{command.Name} {ParseArgs(((SocketSlashCommandData)context.Interaction.Data).Options)}");
+                $"[Command] {guild} {Format.UsernameAndDiscriminator(context.User, false)} ({context.User.Id}) ran /{(string.IsNullOrEmpty(command.Module.Parent?.SlashGroupName) ? string.Empty : command.Module.Parent.SlashGroupName + ' ')}{(string.IsNullOrEmpty(command.Module.SlashGroupName) ? string.Empty : command.Module.SlashGroupName + ' ')}{command.Name} {ParseArgs(((SocketSlashCommandData)context.Interaction.Data).Options)}");
         }
     }
-
-    public static string DisplayName(IUser user) => user.Discriminator == "0000"
-        ? user.Username
-        : $"{user.Username}#{user.Discriminator}";
 
     private static string ParseArgs(IEnumerable<SocketSlashCommandDataOption> data)
     {

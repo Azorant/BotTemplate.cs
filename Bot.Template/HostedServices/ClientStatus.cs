@@ -1,11 +1,13 @@
 ﻿using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
+using Serilog;
 
 namespace Bot.Template.HostedServices;
 
 internal sealed class ClientStatus(DiscordSocketClient client) : IHostedService, IDisposable
 {
     private int lastStatus;
+    private readonly string[] statuses = ["/help", "eris.gg"];
     private Timer? timer;
 
     public void Dispose()
@@ -27,18 +29,15 @@ internal sealed class ClientStatus(DiscordSocketClient client) : IHostedService,
 
     private async void SetStatus(object? state)
     {
-        var status = "/help";
-        switch (lastStatus)
+        try
         {
-            case 0:
-                lastStatus++;
-                break;
-            case 1:
-                status = "eris.gg";
-                lastStatus = 0;
-                break;
+            await client.SetCustomStatusAsync(statuses[lastStatus]);
+            lastStatus++;
+            if (lastStatus == statuses.Length) lastStatus = 0;
         }
-
-        await client.SetCustomStatusAsync(status);
+        catch (Exception e)
+        {
+            Log.Error(e, "Failed to set status");
+        }
     }
 }
