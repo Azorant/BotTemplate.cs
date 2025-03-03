@@ -1,11 +1,14 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
-namespace Bot.Template;
+namespace Template.Bot.EventHandlers;
 
-public class Events(DiscordSocketClient client)
+public class ClientEvents(IServiceProvider serviceProvider)
 {
+    private readonly DiscordSocketClient client = serviceProvider.GetRequiredService<DiscordSocketClient>();
+    
     public Task OnGuildJoined(SocketGuild guild)
     {
         Task.Run(async () =>
@@ -55,7 +58,7 @@ public class Events(DiscordSocketClient client)
         });
         return Task.CompletedTask;
     }
-    
+
     public Task OnClientReady()
     {
         Task.Run(async () =>
@@ -74,7 +77,7 @@ public class Events(DiscordSocketClient client)
         });
         return Task.CompletedTask;
     }
-    
+
     public Task OnClientDisconnected(Exception exception)
     {
         Task.Run(async () =>
@@ -85,7 +88,7 @@ public class Events(DiscordSocketClient client)
             await channel.SendMessageAsync(embed: new EmbedBuilder()
                 .WithTitle("Client Disconnected")
                 .WithDescription(exception.Message)
-                .WithColor(Color.Green)
+                .WithColor(Color.Gold)
                 .WithCurrentTimestamp()
                 .Build());
         }).ContinueWith(t =>

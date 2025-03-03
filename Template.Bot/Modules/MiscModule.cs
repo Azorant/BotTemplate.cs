@@ -1,9 +1,9 @@
 ﻿using System.Reflection;
-using Bot.Template.HostedServices;
 using Discord;
 using Discord.Interactions;
+using Template.Bot.HostedServices;
 
-namespace Bot.Template.Modules;
+namespace Template.Bot.Modules;
 
 public class MiscModule() : InteractionModuleBase<SocketInteractionContext>
 {

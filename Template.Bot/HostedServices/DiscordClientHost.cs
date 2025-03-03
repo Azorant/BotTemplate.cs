@@ -1,15 +1,14 @@
 using System.Reflection;
 using Discord;
 using Discord.Interactions;
-using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 
-namespace Bot.Template.HostedServices;
+namespace Template.Bot.HostedServices;
 
-internal sealed class DiscordClientHost : IHostedService
+public sealed class DiscordClientHost : IHostedService
 {
     private readonly DiscordSocketClient client;
     private readonly InteractionService interactionService;
@@ -19,8 +18,7 @@ internal sealed class DiscordClientHost : IHostedService
     public DiscordClientHost(
         DiscordSocketClient client,
         InteractionService interactionService,
-        IServiceProvider serviceProvider,
-        Events events)
+        IServiceProvider serviceProvider)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(interactionService);
@@ -29,7 +27,7 @@ internal sealed class DiscordClientHost : IHostedService
         this.client = client;
         this.interactionService = interactionService;
         this.serviceProvider = serviceProvider;
-        this.events = events;
+        events = new Events(serviceProvider);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -37,13 +35,11 @@ internal sealed class DiscordClientHost : IHostedService
         client.InteractionCreated += InteractionCreated;
         client.Ready += ClientReady;
         client.Log += LogAsync;
-        client.JoinedGuild += events.OnGuildJoined;
-        client.LeftGuild += events.OnGuildLeft;
-        client.Ready += events.OnClientReady;
-        client.Disconnected += events.OnClientDisconnected;
         interactionService.Log += LogAsync;
         interactionService.SlashCommandExecuted += SlashCommandExecuted;
-        
+
+        events.Register();
+
         await client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("TOKEN"));
         await client.StartAsync();
     }
@@ -53,12 +49,10 @@ internal sealed class DiscordClientHost : IHostedService
         client.InteractionCreated -= InteractionCreated;
         client.Ready -= ClientReady;
         client.Log -= LogAsync;
-        client.JoinedGuild -= events.OnGuildJoined;
-        client.LeftGuild -= events.OnGuildLeft;
-        client.Ready -= events.OnClientReady;
-        client.Disconnected -= events.OnClientDisconnected;
         interactionService.Log -= LogAsync;
         interactionService.SlashCommandExecuted -= SlashCommandExecuted;
+
+        events.Deregister();
 
         await client.StopAsync();
     }
@@ -95,6 +89,8 @@ internal sealed class DiscordClientHost : IHostedService
             var commands = await interactionService.RegisterCommandsGloballyAsync();
             Log.Information($"Deployed {commands.Count} commands globally");
         }
+        
+        client.Ready -= ClientReady;
     }
 
     private static async Task LogAsync(LogMessage message)
