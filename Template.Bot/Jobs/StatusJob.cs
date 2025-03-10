@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
-namespace Template.Jobs;
+namespace Template.Bot.Jobs;
 
 public class StatusJob(IServiceProvider serviceProvider)
 {

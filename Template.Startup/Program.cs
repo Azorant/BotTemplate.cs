@@ -12,7 +12,7 @@ using MudBlazor.Services;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
-using Template.Jobs;
+using Template.Bot.Jobs;
 using Template.Startup;
 using Template.Website.Components;
 
@@ -100,7 +100,7 @@ try
         await db.ApplyMigrations();
     }
 
-    RecurringJob.AddOrUpdate<StatusJob>("clientStatus", x => x.SetStatus(), "0,15,30,45 * * * * *");
+    RecurringJob.AddOrUpdate<StatusJob>("client_status", x => x.SetStatus(), "0,15,30,45 * * * * *");
 
     host.Run();
 }

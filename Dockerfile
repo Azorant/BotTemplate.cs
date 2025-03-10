@@ -9,7 +9,6 @@ WORKDIR /src
 COPY ["Template.sln", "."]
 COPY ["Template.Bot/Template.Bot.csproj", "Template.Bot/"]
 COPY ["Template.Database/Template.Database.csproj", "Template.Database/"]
-COPY ["Template.Jobs/Template.Jobs.csproj", "Template.Jobs/"]
 COPY ["Template.Startup/Template.Startup.csproj", "Template.Startup/"]
 COPY ["Template.Website/Template.Website.csproj", "Template.Website/"]
 RUN dotnet restore
