@@ -9,10 +9,12 @@ using Hangfire;
 using Hangfire.Redis.StackExchange;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using MudBlazor.Services;
+using Prometheus;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
 using Template.Bot.Jobs;
+using Template.Bot.Services;
 using Template.Startup;
 using Template.Website.Components;
 
@@ -20,6 +22,7 @@ try
 {
     Log.Logger = new LoggerConfiguration()
         .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
         .MinimumLevel.Information()
         .Enrich.FromLogContext()
         .WriteTo.Console()
@@ -49,6 +52,7 @@ try
         })
         .AddSingleton<DiscordSocketClient>()
         .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>()))
+        .AddSingleton<PrometheusService>()
         .AddHostedService<DiscordClientHost>();
 
     #endregion
@@ -93,6 +97,7 @@ try
         Authorization = new[] { new DashboardNoAuthorizationFilter() },
         IgnoreAntiforgeryToken = true
     });
+    host.MapMetrics();
 
     using (var scope = host.Services.CreateScope())
     {

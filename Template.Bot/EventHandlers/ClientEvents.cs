@@ -2,17 +2,20 @@
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using Template.Bot.Services;
 
 namespace Template.Bot.EventHandlers;
 
 public class ClientEvents(IServiceProvider serviceProvider)
 {
     private readonly DiscordSocketClient client = serviceProvider.GetRequiredService<DiscordSocketClient>();
+    private readonly PrometheusService prometheusService = serviceProvider.GetRequiredService<PrometheusService>();
     
     public Task OnGuildJoined(SocketGuild guild)
     {
         Task.Run(async () =>
         {
+            prometheusService.Guilds.Inc();
             if (!ulong.TryParse(Environment.GetEnvironmentVariable("GUILD_CHANNEL"), out var channelId)) return;
             if (client.GetChannel(channelId) is not SocketTextChannel channel || channel.GetChannelType() != ChannelType.Text) return;
 
@@ -38,6 +41,7 @@ public class ClientEvents(IServiceProvider serviceProvider)
     {
         Task.Run(async () =>
         {
+            prometheusService.Guilds.Dec();
             if (!ulong.TryParse(Environment.GetEnvironmentVariable("GUILD_CHANNEL"), out var channelId)) return;
             if (client.GetChannel(channelId) is not SocketTextChannel channel || channel.GetChannelType() != ChannelType.Text) return;
 

@@ -1,6 +1,7 @@
 ﻿using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using Template.Bot.Services;
 
 namespace Template.Bot.Jobs;
 
@@ -14,9 +15,11 @@ public class StatusJob(IServiceProvider serviceProvider)
         try
         {
             var client = serviceProvider.GetRequiredService<DiscordSocketClient>();
+            var prom = serviceProvider.GetRequiredService<PrometheusService>();
             await client.SetCustomStatusAsync(statuses[lastStatus]);
             lastStatus++;
             if (lastStatus == statuses.Length) lastStatus = 0;
+            prom.Latency.Set(client.Latency);
         }
         catch (Exception e)
         {
